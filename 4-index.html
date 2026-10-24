@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paint Manager</title>
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+:root{
+  --bg:#0e1116; --panel:#171c24; --panel2:#1f2630; --panel3:#242d3a;
+  --border:#2a3340; --ink:#e8ecf1; --muted:#9aa6b2; --faint:#6b7684;
+  --accent:#f5a623; --accent-dk:#c77f0a; --green:#3ecf8e; --red:#ff5c5c; --blue:#4da3ff;
+  --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=color]{padding:2px;height:40px;cursor:pointer}
+label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.04em}
+
+#app{display:flex;flex-direction:column;height:100vh;max-width:1400px;margin:0 auto}
+.topbar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .logo{width:36px;height:36px;border-radius:9px;flex:0 0 auto;
+  background:linear-gradient(135deg,var(--accent) 0%,#e25822 100%);
+  display:flex;align-items:center;justify-content:center;font-weight:800;color:#1a1206;font-size:19px}
+.brand h1{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .sub{font-size:11px;color:var(--faint);white-space:nowrap}
+.tabs{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:9px;color:var(--muted);font-weight:600;font-size:14px;border:1px solid transparent}
+.tab:hover{color:var(--ink);background:var(--panel2)}
+.tab.active{color:var(--accent);background:rgba(245,166,35,.1);border-color:rgba(245,166,35,.35)}
+.tab .badge{position:relative;top:-1px;margin-left:5px;background:var(--red);color:#fff;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700}
+
+.content{flex:1;overflow-y:auto;padding:16px 18px 90px}
+.footerbar{
+  padding:8px 18px;text-align:center;font-size:11px;color:var(--faint);
+  border-top:1px solid var(--border);background:var(--panel);letter-spacing:.03em;
+}
+
+/* ---------- generic ---------- */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.row{display:flex;gap:10px;align-items:center}
+.grid{display:grid;gap:14px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 18px;border-radius:9px;font-weight:700;font-size:14px;
+  background:var(--panel3);border:1px solid var(--border);color:var(--ink);
+  min-height:44px;transition:filter .12s;
+}
+.btn:hover{filter:brightness(1.15)}
+.btn.primary{background:var(--accent);border-color:var(--accent-dk);color:#1a1206}
+.btn.green{background:var(--green);border-color:#2aa56d;color:#06281a}
+.btn.red{background:rgba(255,92,92,.12);border-color:rgba(255,92,92,.4);color:var(--red)}
+.btn.ghost{background:transparent}
+.btn.small{padding:6px 12px;min-height:34px;font-size:13px;border-radius:7px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.chip.green{background:rgba(62,207,142,.14);color:var(--green)}
+.chip.red{background:rgba(255,92,92,.14);color:var(--red)}
+.chip.amber{background:rgba(245,166,35,.14);color:var(--accent)}
+.chip.blue{background:rgba(77,163,255,.14);color:var(--blue)}
+.muted{color:var(--muted)} .small-txt{font-size:13px}
+.swatch{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.25);flex:0 0 auto;display:inline-block;vertical-align:middle}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.stat-card .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat-card .v{font-size:22px;font-weight:800;margin-top:4px}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:9px 10px;border-bottom:1px solid rgba(42,51,64,.55);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr.clickable{cursor:pointer}
+.tbl tr.clickable:hover td{background:rgba(255,255,255,.03)}
+tr.low td{background:rgba(255,92,92,.06)}
+.empty{padding:38px 16px;text-align:center;color:var(--faint)}
+.search-row{margin-bottom:12px}
+hr.sep{border:none;border-top:1px solid var(--border);margin:12px 0}
+
+/* ---------- bill tab ---------- */
+.bill-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;align-items:start}
+.stock-pick{max-height:calc(100vh - 250px);overflow-y:auto}
+.pick-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;border-radius:9px;border:1px solid transparent}
+.pick-row:hover{background:var(--panel2);border-color:var(--border)}
+.pick-row.out{opacity:.4}
+.pick-row .nm{font-weight:600;font-size:14px}
+.pick-row .dt{font-size:12px;color:var(--muted)}
+.pick-row .pr{margin-left:auto;text-align:right;font-weight:700;white-space:nowrap}
+.pick-row .pr .q{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.pick-row .pr .q.low{color:var(--red)}
+.cart-line{display:grid;grid-template-columns:1fr auto;gap:6px 10px;padding:10px 0;border-bottom:1px solid rgba(42,51,64,.55)}
+.cart-line .nm{font-weight:600;font-size:14px}
+.cart-line .dt{font-size:12px;color:var(--muted)}
+.cart-line .ctrls{display:flex;align-items:center;gap:6px;grid-column:1/-1;flex-wrap:wrap}
+.qty-btn{width:34px;height:34px;border-radius:8px;background:var(--panel3);border:1px solid var(--border);font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center}
+.rate-input{width:100px;padding:6px 8px;text-align:right}
+.line-total{margin-left:auto;font-weight:700;min-width:90px;text-align:right}
+.rm{color:var(--red);font-size:18px;padding:4px 8px}
+.totals{margin-top:12px;font-size:14px}
+.totals .trow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;gap:10px}
+.totals .grand{font-size:20px;font-weight:800;border-top:1px solid var(--border);margin-top:8px;padding-top:10px}
+.totals .grand .amt{color:var(--accent)}
+.disc-input{width:120px;padding:6px 8px;text-align:right}
+.pay-toggle{display:flex;gap:8px;margin:14px 0 10px}
+.pay-toggle button{flex:1;padding:12px;border-radius:9px;border:1px solid var(--border);background:var(--panel2);font-weight:700;color:var(--muted)}
+.pay-toggle button.on-cash{background:rgba(62,207,142,.15);border-color:var(--green);color:var(--green)}
+.pay-toggle button.on-udh{background:rgba(245,166,35,.15);border-color:var(--accent);color:var(--accent)}
+
+/* ---------- modal ---------- */
+.modal-back{position:fixed;inset:0;background:rgba(5,8,12,.72);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:20px}
+.modal h2{font-size:17px;margin-bottom:14px}
+.modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.swatch-presets{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.swatch-presets button{width:30px;height:30px;border-radius:8px;border:2px solid transparent}
+.swatch-presets button.sel{border-color:#fff}
+
+/* ---------- receipt ---------- */
+.receipt{background:#fff;color:#111;border-radius:10px;padding:18px 16px;font-family:"Courier New",monospace;font-size:13px;max-width:340px;margin:0 auto}
+.receipt h3{text-align:center;font-size:16px;font-family:"Segoe UI",system-ui,sans-serif}
+.receipt .rc{text-align:center;color:#444;font-size:12px}
+.receipt table{width:100%;border-collapse:collapse;margin:8px 0}
+.receipt th{border-bottom:1px dashed #999;text-align:left;font-size:12px;padding:3px 0}
+.receipt td{padding:3px 0;font-size:12px;vertical-align:top}
+.receipt .rt{border-top:1px dashed #999;font-weight:700}
+.receipt .right{text-align:right;white-space:nowrap}
+.receipt .foot{text-align:center;font-size:11px;color:#555;margin-top:10px;border-top:1px dashed #999;padding-top:8px}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--panel3);border:1px solid var(--border);border-radius:10px;padding:11px 18px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:tin .18s ease-out}
+.toast.ok{border-color:var(--green);color:var(--green)}
+.toast.err{border-color:var(--red);color:var(--red)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- customers ---------- */
+.cust-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);cursor:pointer;width:100%;text-align:left}
+.cust-card:hover{border-color:var(--accent)}
+.cust-card .av{width:40px;height:40px;border-radius:50%;background:var(--panel3);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--accent);flex:0 0 auto}
+.ledger-row{display:flex;justify-content:space-between;gap:10px;padding:9px 4px;border-bottom:1px solid rgba(42,51,64,.55);font-size:14px}
+.ledger-row:last-child{border-bottom:none}
+
+@media print{
+  body{background:#fff}
+  #app,.topbar,.footerbar,.modal-back .modal .actions,#toast,.no-print{display:none !important}
+  .modal-back{position:static;background:none;padding:0;display:block}
+  .modal{border:none;max-width:none;max-height:none;overflow:visible;padding:0;background:#fff}
+  .receipt{max-width:76mm;box-shadow:none}
+}
+@media (max-width:900px){
+  .bill-grid{grid-template-columns:1fr}
+  .stock-pick{max-height:300px}
+}
+@media (max-width:720px){
+  .tabs{margin-left:0;width:100%}
+  .tab{flex:1;text-align:center;padding:8px 4px;font-size:13px}
+  .form-grid{grid-template-columns:1fr}
+  .content{padding:12px 12px 90px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* ================= Paint Manager - offline POS ================= */
+const DB_KEY = 'paintManager.v1';
+
+const BRANDS = ['Brighto','Master Paints','Nippon','Berger','Diamond Paints','Gobis'];
+const TYPES  = ['Plastic Emulsion','Wall Emulsion','Enamel (Gloss)','Weather Shield','Primer (Undercoat)','Distemper','Wall Putty','Thinner'];
+const SIZES  = ['Quarter (0.91 L)','1 Litre','Gallon (3.64 L)','Drum (16 L)','5 kg','20 kg'];
+const PRESET_COLOURS = [
+  {name:'White',hex:'#f4f4ee'},{name:'Off White',hex:'#f0ead8'},{name:'Magnolia',hex:'#f2e2c4'},
+  {name:'Cream',hex:'#f3e0b8'},{name:'Lemon Yellow',hex:'#f5d54a'},{name:'Sky Blue',hex:'#a8cbe8'},
+  {name:'Sea Green',hex:'#9fd3b4'},{name:'Rose Pink',hex:'#eab5c0'},{name:'Peach',hex:'#f2c9a4'},
+  {name:'Grey',hex:'#b9bdc2'},{name:'Black',hex:'#2a2a2a'},{name:'Red Oxide',hex:'#8a3b2e'}
+];
+
+function uid(p){ return p + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmt(n){ n = Math.round(Number(n)||0); return 'Rs ' + n.toLocaleString('en-US'); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function todayStr(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDT(ts){ const d=new Date(ts); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+
+function seedItems(){
+  const S = [
+    ['Brighto','Plastic Emulsion','White','#f4f4ee','Gallon (3.64 L)',12,6300,7200],
+    ['Brighto','Plastic Emulsion','White','#f4f4ee','Drum (16 L)',6,21500,24000],
+    ['Brighto','Plastic Emulsion','Off White','#f0ead8','Gallon (3.64 L)',8,6300,7200],
+    ['Brighto','Enamel (Gloss)','White','#f4f4ee','Gallon (3.64 L)',6,7800,8900],
+    ['Brighto','Enamel (Gloss)','Black','#2a2a2a','Quarter (0.91 L)',10,2100,2450],
+    ['Master Paints','Weather Shield','White','#f4f4ee','Gallon (3.64 L)',5,8500,9700],
+    ['Master Paints','Plastic Emulsion','Magnolia','#f2e2c4','Gallon (3.64 L)',7,6400,7300],
+    ['Master Paints','Primer (Undercoat)','White','#f4f4ee','Gallon (3.64 L)',9,5400,6200],
+    ['Nippon','Plastic Emulsion','White','#f4f4ee','Gallon (3.64 L)',6,6900,7900],
+    ['Nippon','Weather Shield','White','#f4f4ee','Gallon (3.64 L)',4,9200,10500],
+    ['Berger','Plastic Emulsion','White','#f4f4ee','Gallon (3.64 L)',6,6600,7550],
+    ['Berger','Wall Emulsion','Off White','#f0ead8','Gallon (3.64 L)',5,6800,7750],
+    ['Berger','Primer (Undercoat)','White','#f4f4ee','Gallon (3.64 L)',6,5600,6400],
+    ['Diamond Paints','Plastic Emulsion','White','#f4f4ee','Gallon (3.64 L)',10,5900,6800],
+    ['Diamond Paints','Enamel (Gloss)','White','#f4f4ee','1 Litre',14,1950,2300],
+    ['Gobis','Wall Putty','White','#f4f4ee','20 kg',15,1650,1950],
+    ['Gobis','Wall Putty','White','#f4f4ee','5 kg',12,480,580],
+    ['Local','Thinner','Clear','#dfe8ee','Gallon (3.64 L)',18,1400,1700],
+    ['Local','Thinner','Clear','#dfe8ee','1 Litre',24,380,460],
+    ['Brighto','Distemper','White','#f4f4ee','20 kg',8,2900,3400]
+  ];
+  return S.map(r => ({ id:uid('i'), brand:r[0], type:r[1], colour:r[2], hex:r[3], size:r[4], qty:r[5], buy:r[6], sell:r[7], low:5 }));
+}
+
+function defaultState(){
+  return {
+    settings:{ shopName:'Paint Store', phone:'', address:'', footer:'DEVELOPER BY CHAUDHRY NOMAN · POWERED BY ALPHA BLUE DIGITAL' },
+    items:seedItems(), customers:[], bills:[], payments:[], cart:[],
+    seq:{ bill:1001 }, seededAt:Date.now()
+  };
+}
+
+let state;
+try {
+  const raw = localStorage.getItem(DB_KEY);
+  state = raw ? JSON.parse(raw) : defaultState();
+  if(!state.items) state = defaultState();
+} catch(e){ state = defaultState(); }
+function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(state)); }catch(e){ toast('Save nahi hua: storage full', 'err'); } }
+if(!localStorage.getItem(DB_KEY)) save();
+
+let ui = { tab:'bill', stockQ:'', pickQ:'', reportRange:'today', openCustomer:null };
+
+/* ---------- toast ---------- */
+function toast(msg, kind){
+  const box = document.getElementById('toast');
+  while(box.children.length >= 2) box.firstChild.remove();
+  const t = document.createElement('div');
+  t.className = 'toast ' + (kind||'');
+  t.textContent = msg;
+  box.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),320); }, 3000);
+}
+
+/* ---------- modal ---------- */
+function openModal(html){ document.getElementById('modal-root').innerHTML = '<div class="modal-back" data-action="modal-back"><div class="modal">'+html+'</div></div>'; }
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+/* ---------- business helpers ---------- */
+function itemById(id){ return state.items.find(i=>i.id===id); }
+function custById(id){ return state.customers.find(c=>c.id===id); }
+function itemName(it){ return it.brand+' '+it.type+' '+it.colour; }
+function custBalance(cid){
+  const bills = state.bills.filter(b=>b.customerId===cid && b.payType==='udhaar').reduce((s,b)=>s+b.total,0);
+  const pays  = state.payments.filter(p=>p.customerId===cid).reduce((s,p)=>s+p.amount,0);
+  return bills - pays;
+}
+function cartTotal(){
+  const sub = state.cart.reduce((s,l)=>s + l.rate*l.qty, 0);
+  const disc = Math.min(Math.max(Number(state.cartDiscount)||0,0), sub);
+  return { sub, disc, total: sub - disc };
+}
+function lowStockCount(){ return state.items.filter(i=>i.qty <= (i.low||5)).length; }
+
+/* ================= renders ================= */
+function render(){
+  const low = lowStockCount();
+  document.getElementById('app').innerHTML =
+    '<div class="topbar">' +
+      '<div class="brand"><div class="logo">P</div><div><h1>'+esc(state.settings.shopName)+'</h1><div class="sub">Paint Manager · '+esc(todayStr())+'</div></div></div>' +
+      '<div class="tabs">' +
+        tabBtn('bill','Bill') +
+        '<button class="tab'+(ui.tab==='stock'?' active':'')+'" data-action="nav" data-tab="stock">Maal'+(low? '<span class="badge">'+low+'</span>':'')+'</button>' +
+        tabBtn('udhaar','Udhaar') +
+        tabBtn('report','Report') + tabBtn('settings','Settings') +
+      '</div>' +
+    '</div>' +
+    '<div class="content" id="content">' +
+      (ui.tab==='bill' ? renderBill() :
+       ui.tab==='stock' ? renderStock() :
+       ui.tab==='udhaar' ? renderUdhaar() :
+       ui.tab==='report' ? renderReport() : renderSettings()) +
+    '</div>' +
+    '<div class="footerbar">'+esc(state.settings.footer)+' · ALL RIGHTS RESERVED 2026</div>';
+}
+function tabBtn(id,label){ return '<button class="tab'+(ui.tab===id?' active':'')+'" data-action="nav" data-tab="'+id+'">'+label+'</button>'; }
+
+/* ---------- Bill ---------- */
+function renderBill(){
+  const q = ui.pickQ.toLowerCase();
+  const list = state.items.filter(i => !q || (itemName(i)+' '+i.size).toLowerCase().includes(q));
+  const picks = list.map(it => {
+    const out = it.qty<=0, lowQ = it.qty <= (it.low||5);
+    return '<button class="pick-row'+(out?' out':'')+'" data-action="add-line" data-id="'+it.id+'" '+(out?'disabled':'')+'>' +
+      '<span class="swatch" style="background:'+esc(it.hex)+'"></span>' +
+      '<span><span class="nm">'+esc(itemName(it))+'</span><br><span class="dt">'+esc(it.size)+'</span></span>' +
+      '<span class="pr">'+fmt(it.sell)+'<span class="q'+(lowQ?' low':'')+'">stock: '+it.qty+'</span></span>' +
+    '</button>';
+  }).join('') || '<div class="empty">Koi item nahi mila. Maal tab mein naya item add karein.</div>';
+
+  const lines = state.cart.map((l,idx) => {
+    const it = itemById(l.itemId);
+    return '<div class="cart-line">' +
+      '<div><div class="nm">'+esc(l.name)+'</div><div class="dt">'+esc(l.size)+(it? ' · stock: '+it.qty : '')+'</div></div>' +
+      '<button class="rm" data-action="rm-line" data-idx="'+idx+'" title="Hatao">×</button>' +
+      '<div class="ctrls">' +
+        '<button class="qty-btn" data-action="qty" data-idx="'+idx+'" data-d="-1">−</button>' +
+        '<b style="min-width:30px;text-align:center">'+l.qty+'</b>' +
+        '<button class="qty-btn" data-action="qty" data-idx="'+idx+'" data-d="1">+</button>' +
+        '<input class="rate-input" type="number" min="0" step="1" value="'+l.rate+'" data-field="line-rate" data-idx="'+idx+'" title="Rate">' +
+        '<span class="line-total">'+fmt(l.rate*l.qty)+'</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  const t = cartTotal();
+  const payType = state.cartPayType || 'cash';
+  const custOpts = state.customers.map(c=>'<option value="'+c.id+'"'+(state.cartCustomerId===c.id?' selected':'')+'>'+esc(c.name)+'</option>').join('');
+
+  return '<div class="bill-grid">' +
+    '<div class="panel"><div class="search-row"><input placeholder="Item dhoondo: brand, type, colour, size..." value="'+esc(ui.pickQ)+'" data-field="pick-q"></div>' +
+      '<div class="stock-pick">'+picks+'</div></div>' +
+    '<div class="panel"><h2 style="font-size:16px;margin-bottom:6px">Bill'+(state.cart.length? ' ('+state.cart.length+')':'')+'</h2>' +
+      (state.cart.length ? lines : '<div class="empty">Cart khali hai.<br>Baen taraf se item chunein.</div>') +
+      '<div class="totals">' +
+        '<div class="trow"><span class="muted">Subtotal</span><b>'+fmt(t.sub)+'</b></div>' +
+        '<div class="trow"><span class="muted">Discount (Rs)</span><input class="disc-input" type="number" min="0" step="1" value="'+(state.cartDiscount||'')+'" data-field="discount" placeholder="0"></div>' +
+        '<div class="trow grand"><span>Total</span><span class="amt">'+fmt(t.total)+'</span></div>' +
+      '</div>' +
+      '<div class="pay-toggle">' +
+        '<button data-action="pay-type" data-t="cash" class="'+(payType==='cash'?'on-cash':'')+'">Cash</button>' +
+        '<button data-action="pay-type" data-t="udhaar" class="'+(payType==='udhaar'?'on-udh':'')+'">Udhaar</button>' +
+      '</div>' +
+      (payType==='udhaar'
+        ? '<div class="row" style="margin-bottom:10px"><select data-field="cart-cust" style="flex:1"><option value="">-- Customer chunein --</option>'+custOpts+'</select>' +
+          '<button class="btn small" data-action="new-cust">+ Naya</button></div>'
+        : '') +
+      '<button class="btn '+(payType==='cash'?'green':'primary')+'" style="width:100%" data-action="save-bill" '+(state.cart.length?'':'disabled')+'>Bill Save · '+fmt(t.total)+'</button>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ---------- Maal (stock) ---------- */
+function renderStock(){
+  const q = ui.stockQ.toLowerCase();
+  const list = state.items.filter(i => !q || (itemName(i)+' '+i.size).toLowerCase().includes(q));
+  const stockValue = state.items.reduce((s,i)=>s+i.qty*i.buy,0);
+  const rows = list.map(it => {
+    const low = it.qty <= (it.low||5);
+    return '<tr class="'+(low?'low':'')+'">' +
+      '<td><span class="swatch" style="background:'+esc(it.hex)+'"></span></td>' +
+      '<td><b>'+esc(itemName(it))+'</b><br><span class="muted small-txt">'+esc(it.size)+'</span></td>' +
+      '<td><b class="'+(low?'':'')+'" style="'+(low?'color:var(--red)':'')+'">'+it.qty+'</b>'+(low?'<br><span class="chip red">kam stock</span>':'')+'</td>' +
+      '<td class="right">'+fmt(it.buy)+'</td><td class="right"><b>'+fmt(it.sell)+'</b></td>' +
+      '<td style="white-space:nowrap;text-align:right">' +
+        '<button class="btn small" data-action="stock-in" data-id="'+it.id+'">+ Maal aaya</button> ' +
+        '<button class="btn small ghost" data-action="edit-item" data-id="'+it.id+'">Edit</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="grid">' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">' +
+      '<div class="stat-card"><div class="k">Items</div><div class="v">'+state.items.length+'</div></div>' +
+      '<div class="stat-card"><div class="k">Stock value (buy)</div><div class="v">'+fmt(stockValue)+'</div></div>' +
+      '<div class="stat-card"><div class="k">Kam stock</div><div class="v" style="color:'+(lowStockCount()?'var(--red)':'var(--green)')+'">'+lowStockCount()+'</div></div>' +
+    '</div>' +
+    '<div class="panel">' +
+      '<div class="row" style="margin-bottom:12px;flex-wrap:wrap">' +
+        '<input style="flex:1;min-width:200px" placeholder="Maal dhoondo..." value="'+esc(ui.stockQ)+'" data-field="stock-q">' +
+        '<button class="btn primary" data-action="new-item">+ Naya Item</button>' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th></th><th>Item</th><th>Stock</th><th style="text-align:right">Buy</th><th style="text-align:right">Sell</th><th></th></tr></thead>' +
+      '<tbody>'+(rows || '<tr><td colspan="6" class="empty">Koi item nahi.</td></tr>')+'</tbody></table></div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ---------- Udhaar ---------- */
+function renderUdhaar(){
+  const totalUdhaar = state.customers.reduce((s,c)=>s+Math.max(custBalance(c.id),0),0);
+  if(ui.openCustomer && !custById(ui.openCustomer)) ui.openCustomer = null;
+
+  if(ui.openCustomer){
+    const c = custById(ui.openCustomer);
+    const bal = custBalance(c.id);
+    const bills = state.bills.filter(b=>b.customerId===c.id).map(b=>({ts:b.ts,kind:'bill',ref:b}));
+    const pays = state.payments.filter(p=>p.customerId===c.id).map(p=>({ts:p.ts,kind:'pay',ref:p}));
+    const ledger = bills.concat(pays).sort((a,b)=>b.ts-a.ts);
+    const rows = ledger.map(e => e.kind==='bill'
+      ? '<div class="ledger-row"><span>Bill #'+e.ref.no+' <span class="muted small-txt">'+fmtDT(e.ts)+'</span></span><b style="color:var(--red)">+ '+fmt(e.ref.total)+'</b></div>'
+      : '<div class="ledger-row"><span>Wasooli <span class="muted small-txt">'+fmtDT(e.ts)+(e.ref.note?' · '+esc(e.ref.note):'')+'</span></span><b style="color:var(--green)">− '+fmt(e.ref.amount)+'</b></div>'
+    ).join('') || '<div class="empty">Koi entry nahi.</div>';
+    const phone = (c.phone||'').replace(/[^0-9]/g,'').replace(/^0/,'92');
+    const waMsg = encodeURIComponent('Assalam o Alaikum '+c.name+', aap ka '+fmt(bal)+' udhaar baqi hai ('+state.settings.shopName+'). Baraye meherbani jald adaigi karein. Shukriya.');
+    return '<div class="grid">' +
+      '<div class="panel">' +
+        '<div class="row" style="flex-wrap:wrap">' +
+          '<button class="btn small ghost" data-action="back-cust">← Wapas</button>' +
+          '<div style="flex:1;min-width:160px"><h2 style="font-size:17px">'+esc(c.name)+'</h2><div class="muted small-txt">'+esc(c.phone||'')+'</div></div>' +
+          '<div style="text-align:right"><div class="k muted small-txt">BALANCE</div><div style="font-size:20px;font-weight:800;color:'+(bal>0?'var(--red)':'var(--green)')+'">'+fmt(bal)+'</div></div>' +
+        '</div>' +
+        '<hr class="sep">' +
+        '<div class="row" style="flex-wrap:wrap">' +
+          '<input type="number" min="1" step="1" placeholder="Wasooli amount" id="pay-amount" style="flex:1;min-width:140px">' +
+          '<input placeholder="Note (optional)" id="pay-note" style="flex:1;min-width:140px">' +
+          '<button class="btn green" data-action="add-payment" data-id="'+c.id+'">Wasooli Save</button>' +
+          (phone ? '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/'+phone+'?text='+waMsg+'">WhatsApp reminder</a>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="panel"><h2 style="font-size:15px;margin-bottom:8px">Ledger</h2>'+rows+'</div>' +
+    '</div>';
+  }
+
+  const cards = state.customers.map(c => {
+    const bal = custBalance(c.id);
+    return '<button class="cust-card" data-action="open-cust" data-id="'+c.id+'">' +
+      '<span class="av">'+esc((c.name||'?').trim().charAt(0).toUpperCase())+'</span>' +
+      '<span style="flex:1;min-width:0"><b>'+esc(c.name)+'</b><br><span class="muted small-txt">'+esc(c.phone||'')+'</span></span>' +
+      '<b style="color:'+(bal>0?'var(--red)':'var(--green)')+'">'+fmt(bal)+'</b>' +
+    '</button>';
+  }).join('') || '<div class="empty">Abhi koi udhaar customer nahi.<br>Bill ko "Udhaar" par save karein ya naya customer banayein.</div>';
+
+  return '<div class="grid">' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">' +
+      '<div class="stat-card"><div class="k">Kul udhaar baqi</div><div class="v" style="color:'+(totalUdhaar>0?'var(--red)':'var(--green)')+'">'+fmt(totalUdhaar)+'</div></div>' +
+      '<div class="stat-card"><div class="k">Customers</div><div class="v">'+state.customers.length+'</div></div>' +
+    '</div>' +
+    '<div class="panel"><div class="row" style="margin-bottom:12px"><h2 style="font-size:16px;flex:1">Udhaar Khata</h2><button class="btn primary" data-action="new-cust">+ Naya Customer</button></div>' +
+    '<div class="grid">'+cards+'</div></div>' +
+  '</div>';
+}
+
+/* ---------- Report ---------- */
+function reportBills(){
+  const now = new Date();
+  return state.bills.filter(b => {
+    if(ui.reportRange==='all') return true;
+    const d = new Date(b.ts);
+    if(ui.reportRange==='today') return todayStr(d)===todayStr(now);
+    return (now - d) <= 7*24*3600*1000;
+  }).sort((a,b)=>b.ts-a.ts);
+}
+function renderReport(){
+  const bills = reportBills();
+  const cash = bills.filter(b=>b.payType==='cash').reduce((s,b)=>s+b.total,0);
+  const udh  = bills.filter(b=>b.payType==='udhaar').reduce((s,b)=>s+b.total,0);
+  const rows = bills.map(b =>
+    '<tr class="clickable" data-action="view-bill" data-id="'+b.id+'">' +
+      '<td><b>#'+b.no+'</b><br><span class="muted small-txt">'+fmtDT(b.ts)+'</span></td>' +
+      '<td>'+esc(b.customerName||'Walk-in')+'</td>' +
+      '<td>'+b.lines.reduce((s,l)=>s+l.qty,0)+' item'+(b.lines.reduce((s,l)=>s+l.qty,0)===1?'':'s')+'</td>' +
+      '<td class="right">'+(b.discount? '<span class="muted">−'+fmt(b.discount)+'</span><br>':'')+'<b>'+fmt(b.total)+'</b></td>' +
+      '<td class="right">'+(b.payType==='cash'?'<span class="chip green">Cash</span>':'<span class="chip amber">Udhaar</span>')+'</td>' +
+    '</tr>').join('');
+  const rangeBtn = (id,label)=>'<button class="btn small'+(ui.reportRange===id?' primary':'')+'" data-action="range" data-r="'+id+'">'+label+'</button>';
+  return '<div class="grid">' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">' +
+      '<div class="stat-card"><div class="k">Bills</div><div class="v">'+bills.length+'</div></div>' +
+      '<div class="stat-card"><div class="k">Cash</div><div class="v" style="color:var(--green)">'+fmt(cash)+'</div></div>' +
+      '<div class="stat-card"><div class="k">Udhaar</div><div class="v" style="color:var(--accent)">'+fmt(udh)+'</div></div>' +
+      '<div class="stat-card"><div class="k">Kul sale</div><div class="v">'+fmt(cash+udh)+'</div></div>' +
+    '</div>' +
+    '<div class="panel">' +
+      '<div class="row" style="margin-bottom:12px;flex-wrap:wrap">' +
+        rangeBtn('today','Aaj') + rangeBtn('week','7 Din') + rangeBtn('all','Sab') +
+        '<span style="flex:1"></span>' +
+        '<button class="btn small" data-action="export-csv">CSV Export</button>' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Bill</th><th>Customer</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>' +
+      '<tbody>'+(rows || '<tr><td colspan="5" class="empty">Is dauraan koi bill nahi.</td></tr>')+'</tbody></table></div>' +
+    '</div>' +
+    '<div class="panel"><h2 style="font-size:15px;margin-bottom:8px">Backup</h2>' +
+      '<div class="row" style="flex-wrap:wrap">' +
+        '<button class="btn" data-action="backup">Backup Download (JSON)</button>' +
+        '<label class="btn" style="margin:0">Backup Restore<input type="file" accept=".json" data-field="restore" style="display:none"></label>' +
+        '<span class="muted small-txt">Data isi computer mein save hota hai. Backup kabhi kabhi download kar lein.</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ---------- Settings ---------- */
+function renderSettings(){
+  const s = state.settings;
+  return '<div class="grid" style="max-width:640px">' +
+    '<div class="panel"><h2 style="font-size:16px;margin-bottom:14px">Dukaan Settings</h2>' +
+      '<div class="form-grid">' +
+        '<div class="full"><label>Dukaan ka naam</label><input id="set-name" value="'+esc(s.shopName)+'"></div>' +
+        '<div><label>Phone</label><input id="set-phone" value="'+esc(s.phone)+'" placeholder="03xx-xxxxxxx"></div>' +
+        '<div><label>Address</label><input id="set-addr" value="'+esc(s.address)+'" placeholder="Gali, bazaar, sheher"></div>' +
+      '</div>' +
+      '<div class="actions" style="justify-content:flex-start;margin-top:16px"><button class="btn primary" data-action="save-settings">Save</button></div>' +
+    '</div>' +
+    '<div class="panel"><h2 style="font-size:16px;margin-bottom:8px">Data</h2>' +
+      '<p class="muted small-txt" style="margin-bottom:12px">Pehli dafa demo maal load hota hai practice ke liye. Asli dukaan ke liye "Khali start" karein - sab maal, bills aur udhaar mita kar zero se shuru karein. "Demo data reset" practice ke liye demo maal wapas laata hai.</p>' +
+      '<div class="row" style="flex-wrap:wrap">' +
+        '<button class="btn red" data-action="empty-start">Khali start (sab delete)</button>' +
+        '<button class="btn" data-action="reset-all">Demo data reset</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ---------- Receipt ---------- */
+function receiptHTML(b){
+  const s = state.settings;
+  const lines = b.lines.map(l =>
+    '<tr><td>'+esc(l.name)+'<br><span style="color:#555">'+esc(l.size)+' × '+l.qty+' @ '+l.rate+'</span></td><td class="right">'+fmt(l.rate*l.qty)+'</td></tr>').join('');
+  return '<div class="receipt">' +
+    '<h3>'+esc(s.shopName)+'</h3>' +
+    (s.address?'<div class="rc">'+esc(s.address)+'</div>':'') +
+    (s.phone?'<div class="rc">'+esc(s.phone)+'</div>':'') +
+    '<div class="rc" style="margin-top:6px">Bill #'+b.no+' · '+fmtDT(b.ts)+'<br>'+(b.customerName? esc(b.customerName)+' · ':'')+(b.payType==='cash'?'CASH':'UDHAAR')+'</div>' +
+    '<table><thead><tr><th>Item</th><th class="right">Amount</th></tr></thead><tbody>'+lines+'</tbody>' +
+    '<tfoot>' +
+      '<tr class="rt"><td>Subtotal</td><td class="right">'+fmt(b.subtotal)+'</td></tr>' +
+      (b.discount? '<tr class="rt"><td>Discount</td><td class="right">− '+fmt(b.discount)+'</td></tr>':'') +
+      '<tr class="rt"><td style="font-size:15px">TOTAL</td><td class="right" style="font-size:15px">'+fmt(b.total)+'</td></tr>' +
+    '</tfoot></table>' +
+    '<div class="foot">Shukriya! Phir tashreef laayein.<br>'+esc(s.footer)+'</div>' +
+  '</div>';
+}
+function showReceipt(bill){
+  openModal('<h2>Bill #'+bill.no+' save ho gaya</h2>' + receiptHTML(bill) +
+    '<div class="actions no-print"><button class="btn ghost" data-action="close-modal">Band</button>' +
+    '<button class="btn primary" data-action="print">Print Receipt</button></div>');
+}
+
+/* ---------- Item form ---------- */
+function itemFormHTML(it){
+  const v = it || {brand:'',type:'',colour:'White',hex:'#f4f4ee',size:'',qty:0,buy:'',sell:'',low:5};
+  const dl = (id,arr)=>'<datalist id="'+id+'">'+arr.map(x=>'<option value="'+esc(x)+'">').join('')+'</datalist>';
+  const presets = PRESET_COLOURS.map(c=>'<button type="button" style="background:'+c.hex+'" data-action="preset-colour" data-name="'+esc(c.name)+'" data-hex="'+c.hex+'" title="'+esc(c.name)+'"></button>').join('');
+  return '<h2>'+(it?'Item Edit':'Naya Item')+'</h2>' +
+    dl('dl-brands',BRANDS)+dl('dl-types',TYPES)+dl('dl-sizes',SIZES) +
+    '<div class="form-grid">' +
+      '<div><label>Brand</label><input id="if-brand" list="dl-brands" value="'+esc(v.brand)+'" placeholder="Brighto"></div>' +
+      '<div><label>Type</label><input id="if-type" list="dl-types" value="'+esc(v.type)+'" placeholder="Plastic Emulsion"></div>' +
+      '<div><label>Colour / Shade</label><input id="if-colour" value="'+esc(v.colour)+'" placeholder="White"></div>' +
+      '<div><label>Shade colour</label><input id="if-hex" type="color" value="'+esc(v.hex)+'"></div>' +
+      '<div class="full"><label>Aam shades</label><div class="swatch-presets">'+presets+'</div></div>' +
+      '<div><label>Size / Packing</label><input id="if-size" list="dl-sizes" value="'+esc(v.size)+'" placeholder="Gallon (3.64 L)"></div>' +
+      '<div><label>Stock qty</label><input id="if-qty" type="number" min="0" step="1" value="'+v.qty+'"></div>' +
+      '<div><label>Buy rate (Rs)</label><input id="if-buy" type="number" min="0" step="1" value="'+v.buy+'"></div>' +
+      '<div><label>Sell rate (Rs)</label><input id="if-sell" type="number" min="0" step="1" value="'+v.sell+'"></div>' +
+      '<div><label>Kam-stock warning (qty)</label><input id="if-low" type="number" min="0" step="1" value="'+(v.low||5)+'"></div>' +
+    '</div>' +
+    '<div class="actions">' +
+      (it? '<button class="btn red" data-action="del-item" data-id="'+it.id+'">Delete</button>' : '') +
+      '<button class="btn ghost" data-action="close-modal">Cancel</button>' +
+      '<button class="btn primary" data-action="save-item"'+(it?' data-id="'+it.id+'"':'')+'>Save Item</button>' +
+    '</div>';
+}
+
+/* ================= actions ================= */
+function saveBill(){
+  if(!state.cart.length){ toast('Cart khali hai','err'); return; }
+  const t = cartTotal();
+  const payType = state.cartPayType || 'cash';
+  let cust = null;
+  if(payType==='udhaar'){
+    cust = custById(state.cartCustomerId);
+    if(!cust){ toast('Udhaar ke liye customer chunein','err'); return; }
+  }
+  for(const l of state.cart){
+    const it = itemById(l.itemId);
+    if(it && l.qty > it.qty){ toast('Stock kam hai: '+itemName(it)+' ('+it.qty+' baqi)','err'); return; }
+  }
+  state.cart.forEach(l => { const it = itemById(l.itemId); if(it) it.qty = Math.max(0, it.qty - l.qty); });
+  const bill = {
+    id:uid('b'), no:state.seq.bill++, ts:Date.now(),
+    customerId: cust? cust.id : null, customerName: cust? cust.name : '',
+    lines: state.cart.map(l=>({name:l.name,size:l.size,qty:l.qty,rate:l.rate})),
+    subtotal:t.sub, discount:t.disc, total:t.total, payType
+  };
+  state.bills.push(bill);
+  state.cart = []; state.cartDiscount = 0; state.cartPayType='cash'; state.cartCustomerId='';
+  save(); render();
+  showReceipt(bill);
+}
+
+function exportCSV(){
+  const bills = reportBills();
+  const head = 'Bill No,Date,Customer,Items,Subtotal,Discount,Total,Type\n';
+  const body = bills.map(b => [b.no, new Date(b.ts).toLocaleString('en-GB'), '"'+(b.customerName||'Walk-in').replace(/"/g,'""')+'"', b.lines.reduce((s,l)=>s+l.qty,0), b.subtotal, b.discount, b.total, b.payType].join(',')).join('\n');
+  download('paint-manager-sales-'+todayStr()+'.csv', head+body, 'text/csv');
+  toast('CSV download ho gaya','ok');
+}
+function download(name, content, mime){
+  const blob = content instanceof Blob ? content : new Blob([content], {type:mime||'application/octet-stream'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+const actions = {
+  'nav': el => { ui.tab = el.dataset.tab; ui.openCustomer = null; render(); },
+  'modal-back': (el,ev) => { if(ev.target === el) closeModal(); },
+  'close-modal': () => closeModal(),
+  'print': () => window.print(),
+
+  'add-line': el => {
+    const it = itemById(el.dataset.id); if(!it) return;
+    const ex = state.cart.find(l=>l.itemId===it.id);
+    const inCart = ex ? ex.qty : 0;
+    if(inCart + 1 > it.qty){ toast('Stock sirf '+it.qty+' hai','err'); return; }
+    if(ex) ex.qty++;
+    else state.cart.push({ itemId:it.id, name:itemName(it), size:it.size, qty:1, rate:it.sell });
+    save(); render();
+  },
+  'rm-line': el => { state.cart.splice(Number(el.dataset.idx),1); save(); render(); },
+  'qty': el => {
+    const l = state.cart[Number(el.dataset.idx)]; if(!l) return;
+    const it = itemById(l.itemId);
+    const nq = l.qty + Number(el.dataset.d);
+    if(nq < 1) return;
+    if(it && nq > it.qty){ toast('Stock sirf '+it.qty+' hai','err'); return; }
+    l.qty = nq; save(); render();
+  },
+  'pay-type': el => { state.cartPayType = el.dataset.t; save(); render(); },
+  'save-bill': () => saveBill(),
+
+  'new-item': () => openModal(itemFormHTML(null)),
+  'edit-item': el => { const it = itemById(el.dataset.id); if(it) openModal(itemFormHTML(it)); },
+  'preset-colour': el => {
+    const n = document.getElementById('if-colour'), h = document.getElementById('if-hex');
+    if(n) n.value = el.dataset.name; if(h) h.value = el.dataset.hex;
+  },
+  'save-item': el => {
+    const g = id => (document.getElementById(id)||{}).value || '';
+    const brand=g('if-brand').trim(), type=g('if-type').trim(), colour=g('if-colour').trim()||'White',
+          hex=g('if-hex')||'#f4f4ee', size=g('if-size').trim(),
+          qty=Math.max(0,Math.round(Number(g('if-qty'))||0)),
+          buy=Math.max(0,Number(g('if-buy'))||0), sell=Math.max(0,Number(g('if-sell'))||0),
+          low=Math.max(0,Math.round(Number(g('if-low'))||0));
+    if(!brand || !type || !size){ toast('Brand, type aur size lazmi hain','err'); return; }
+    if(sell<=0){ toast('Sell rate lazmi hai','err'); return; }
+    if(el.dataset.id){
+      const it = itemById(el.dataset.id);
+      Object.assign(it, {brand,type,colour,hex,size,qty,buy,sell,low});
+      toast('Item update ho gaya','ok');
+    } else {
+      state.items.unshift({ id:uid('i'), brand,type,colour,hex,size,qty,buy,sell,low });
+      toast('Naya item add ho gaya','ok');
+    }
+    save(); closeModal(); render();
+  },
+  'del-item': el => {
+    const it = itemById(el.dataset.id); if(!it) return;
+    if(!confirm('Delete: '+itemName(it)+'?')) return;
+    state.items = state.items.filter(i=>i.id!==it.id);
+    save(); closeModal(); render(); toast('Item delete ho gaya','ok');
+  },
+  'stock-in': el => {
+    const it = itemById(el.dataset.id); if(!it) return;
+    openModal('<h2>Maal aaya: '+esc(itemName(it))+'</h2>' +
+      '<p class="muted small-txt" style="margin-bottom:10px">Abhi stock: <b>'+it.qty+'</b> · '+esc(it.size)+'</p>' +
+      '<label>Kitne '+esc(it.size.includes('kg')?'packs':'dabbe')+ ' aaye?</label>' +
+      '<input id="si-qty" type="number" min="1" step="1" value="1" autofocus>' +
+      '<div class="actions"><button class="btn ghost" data-action="close-modal">Cancel</button>' +
+      '<button class="btn green" data-action="stock-in-save" data-id="'+it.id+'">Stock Add</button></div>');
+  },
+  'stock-in-save': el => {
+    const it = itemById(el.dataset.id); if(!it) return;
+    const n = Math.max(0, Math.round(Number((document.getElementById('si-qty')||{}).value)||0));
+    if(!n){ toast('Qty lazmi hai','err'); return; }
+    it.qty += n; save(); closeModal(); render();
+    toast('Stock ab '+it.qty+' hai','ok');
+  },
+
+  'new-cust': () => openModal('<h2>Naya Customer</h2><div class="form-grid">' +
+    '<div><label>Naam</label><input id="nc-name" placeholder="Customer ka naam"></div>' +
+    '<div><label>Phone</label><input id="nc-phone" placeholder="03xx-xxxxxxx"></div></div>' +
+    '<div class="actions"><button class="btn ghost" data-action="close-modal">Cancel</button>' +
+    '<button class="btn primary" data-action="save-cust">Save Customer</button></div>'),
+  'save-cust': () => {
+    const name = (document.getElementById('nc-name')||{}).value||'';
+    const phone = (document.getElementById('nc-phone')||{}).value||'';
+    if(!name.trim()){ toast('Naam lazmi hai','err'); return; }
+    const c = { id:uid('c'), name:name.trim(), phone:phone.trim() };
+    state.customers.push(c); state.cartCustomerId = c.id;
+    save(); closeModal(); render(); toast('Customer add ho gaya','ok');
+  },
+  'open-cust': el => { ui.openCustomer = el.dataset.id; render(); },
+  'back-cust': () => { ui.openCustomer = null; render(); },
+  'add-payment': el => {
+    const c = custById(el.dataset.id); if(!c) return;
+    const amt = Math.round(Number((document.getElementById('pay-amount')||{}).value)||0);
+    const note = ((document.getElementById('pay-note')||{}).value||'').trim();
+    if(amt<=0){ toast('Amount lazmi hai','err'); return; }
+    const bal = custBalance(c.id);
+    state.payments.push({ id:uid('p'), ts:Date.now(), customerId:c.id, amount:amt, note });
+    save(); render();
+    toast('Wasooli save ho gayi'+(amt>bal?' (balance se zyada)':''),'ok');
+  },
+
+  'range': el => { ui.reportRange = el.dataset.r; render(); },
+  'view-bill': el => { const b = state.bills.find(x=>x.id===el.dataset.id); if(b) showReceipt(b); },
+  'export-csv': () => exportCSV(),
+  'backup': () => { download('paint-manager-backup-'+todayStr()+'.json', JSON.stringify(state,null,2), 'application/json'); toast('Backup download ho gaya','ok'); },
+
+  'save-settings': () => {
+    state.settings.shopName = ((document.getElementById('set-name')||{}).value||'').trim() || 'Paint Store';
+    state.settings.phone = ((document.getElementById('set-phone')||{}).value||'').trim();
+    state.settings.address = ((document.getElementById('set-addr')||{}).value||'').trim();
+    save(); render(); toast('Settings save ho gayi','ok');
+  },
+  'reset-all': () => {
+    if(!confirm('Sab data delete kar ke DEMO maal wapas laayein?')) return;
+    localStorage.removeItem(DB_KEY); location.reload();
+  },
+  'empty-start': () => {
+    if(!confirm('SAB DATA (maal, bills, udhaar, customers) delete ho jayega. Pakka khali start?')) return;
+    const s = defaultState();
+    s.items = [];
+    s.settings = state.settings;
+    state = s; save(); render();
+    toast('Khali start - ab apna maal add karein','ok');
+  }
+};
+
+/* ---------- field listeners (input/change) ---------- */
+function rerenderKeepFocus(sel, len){
+  render();
+  const el = document.querySelector(sel);
+  if(el){ el.focus(); try{ el.setSelectionRange(len,len); }catch(e){} }
+}
+function updateTotalsDOM(){
+  const t = cartTotal();
+  const sub = document.querySelector('.totals .trow b');
+  if(sub) sub.textContent = fmt(t.sub);
+  const gr = document.querySelector('.totals .grand .amt');
+  if(gr) gr.textContent = fmt(t.total);
+  const sb = document.querySelector('[data-action="save-bill"]');
+  if(sb) sb.textContent = 'Bill Save \u00b7 ' + fmt(t.total);
+  document.querySelectorAll('.cart-line').forEach((el,i)=>{
+    const lt = el.querySelector('.line-total');
+    if(lt && state.cart[i]) lt.textContent = fmt(state.cart[i].rate*state.cart[i].qty);
+  });
+}
+const inputFields = {
+  'pick-q': v => { ui.pickQ = v; rerenderKeepFocus('[data-field="pick-q"]', v.length); },
+  'stock-q': v => { ui.stockQ = v; rerenderKeepFocus('[data-field="stock-q"]', v.length); },
+  'line-rate': (v,el) => { const l = state.cart[Number(el.dataset.idx)]; if(l){ l.rate = Math.max(0,Number(v)||0); save(); updateTotalsDOM(); } },
+  'discount': v => { state.cartDiscount = Math.max(0,Number(v)||0); save(); updateTotalsDOM(); }
+};
+const changeFields = {
+  'cart-cust': v => { state.cartCustomerId = v; save(); },
+  'restore': (v,el) => {
+    const f = el.files && el.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const d = JSON.parse(r.result);
+        if(!d || !Array.isArray(d.items) || !Array.isArray(d.bills) || !Array.isArray(d.customers) || !Array.isArray(d.payments) || !d.settings || typeof d.settings.shopName !== 'string') throw new Error('bad file');
+        state = d; save(); render();
+        toast('Backup restore ho gaya: '+d.items.length+' items, '+d.bills.length+' bills','ok');
+      }catch(e){ toast('Backup file theek nahi','err'); }
+    };
+    r.readAsText(f);
+  }
+};
+
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-action]');
+  if(!el || el.disabled) return;
+  const fn = actions[el.dataset.action];
+  if(fn){ ev.preventDefault(); fn(el, ev); }
+});
+document.addEventListener('input', ev => {
+  const el = ev.target.closest('[data-field]');
+  if(!el) return;
+  const fn = inputFields[el.dataset.field];
+  if(fn) fn(el.value, el);
+});
+document.addEventListener('change', ev => {
+  const el = ev.target.closest('[data-field]');
+  if(!el) return;
+  const fn = changeFields[el.dataset.field];
+  if(fn) fn(el.value, el);
+});
+document.addEventListener('keydown', ev => {
+  if(ev.key === 'Escape') closeModal();
+});
+
+render();
+</script>
+</body>
+</html>
